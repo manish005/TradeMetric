@@ -9,7 +9,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 
-**Project tomorrow's growth, today** — [\*\*\*Live App\*\*\*](https://trademetric-two.vercel.app)
+**Project tomorrow's growth, today** — [Live App](https://trademetric-two.vercel.app)
 
 </div>
 
