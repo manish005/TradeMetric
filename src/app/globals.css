@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #070b13;
+  --color-panel: #0d151e;
+  --color-panel2: #121c27;
+--color-line: #1d2a3a;
+  --color-line2: #2a3b4f;
+  --color-ink: #e9f1f9;
+  --color-muted: #8296ab;
+  --color-faint: #55677c;
+  --color-faint: #5c7086;
+  --color-mint: #34d399;
+  --color-teal: #2dd4bf;
+  --color-cyan: #38bdf8;
+  --color-amber: #fbbf24;
+  --color-coral: #fb7185;
+  --color-violet: #a78bfa;
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-thumb: 9999px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+::selection {
+  background: rgba(52, 211, 153, 0.28);
+}
+
+/* Slim custom scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(134, 150, 168, 0.4) transparent;
+}
+*::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(134, 150, 168, 0.35);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* No horizontal scrolling anywhere */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Range slider */
+input[type="range"] {
+  accent-color: var(--color-mint);
+  cursor: pointer;
+}
+
+/* Number input arrows kept neutral */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+.date-picker-icon {
+  color-scheme: dark;
+}
+
+/* Utility: sticky table column highlight */
+.th-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+/* Font-size scaling (text only, layout stays fixed) */
+.text-\[10px\] { font-size: calc(10px * var(--app-scale, 1)); }
+.text-\[11px\] { font-size: calc(11px * var(--app-scale, 1)); }
+.text-\[12px\] { font-size: calc(12px * var(--app-scale, 1)); }
+.text-\[13px\] { font-size: calc(13px * var(--app-scale, 1)); }
+.text-\[14px\] { font-size: calc(14px * var(--app-scale, 1)); }
+.text-\[15px\] { font-size: calc(15px * var(--app-scale, 1)); }
+.text-\[28px\] { font-size: calc(28px * var(--app-scale, 1)); }
+@media (min-width: 40rem) {
+  .sm\:text-\[28px\] { font-size: calc(28px * var(--app-scale, 1)); }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.35s ease-out both;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.7);
+  outline-offset: 2px;
+}
+
+/* Ambient light orbs (cinematic dark) */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  will-change: transform;
+}
+.orb-a {
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.22), transparent 62%);
+  animation: drift-a 22s ease-in-out infinite alternate;
+}
+.orb-b {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.2), transparent 62%);
+  animation: drift-b 26s ease-in-out infinite alternate;
+}
+.orb-c {
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.16), transparent 62%);
+  animation: drift-c 30s ease-in-out infinite alternate;
+}
+@keyframes drift-a {
+  from { transform: translate3d(-6%, -4%, 0) scale(1); }
+  to { transform: translate3d(10%, 8%, 0) scale(1.15); }
+}
+@keyframes drift-b {
+  from { transform: translate3d(8%, 2%, 0) scale(1.1); }
+  to { transform: translate3d(-10%, 10%, 0) scale(0.95); }
+}
+@keyframes drift-c {
+  from { transform: translate3d(0%, 10%, 0) scale(0.95); }
+  to { transform: translate3d(6%, -8%, 0) scale(1.12); }
+}
+
+/* Subtle gradient sheen for primary buttons */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sheen:hover::after {
+  transform: translateX(120%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb,
+  .orb-a,
+  .orb-b,
+  .orb-c {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
