@@ -11,7 +11,6 @@ export function generateStaticParams() {
     "analytics",
     "converter",
     "sessions",
-    "backtest",
     "guide",
     "settings",
     "profile",
@@ -81,20 +80,6 @@ const VIEW_META: Record<string, Metadata> = {
       "New York session trading time in IST",
       "best time to trade forex in India IST",
       "forex session times India",
-    ],
-  },
-  backtest: {
-    title: "Backtest & Candlestick Chart Replay",
-    description:
-      "Free candlestick backtesting chart with bar replay. Analyse XAUUSD, XAGUSD, EURUSD, BTCUSDT and more — cut candles and replay price history step by step, with zoom, pan and live Binance crypto data.",
-    keywords: [
-      "backtest trading chart",
-      "candlestick chart replay",
-      "bar replay trading view",
-      "XAUUSD chart analysis",
-      "XAGUSD candlestick chart",
-      "forex candlestick chart gold",
-      "BTCUSDT chart backtest",
     ],
   },
   guide: {

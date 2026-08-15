@@ -16,7 +16,6 @@ import CurrencyConverter from "@/components/CurrencyConverter";
 import MotivationModal from "@/components/MotivationModal";
 import AdminView from "@/components/AdminView";
 import MarketSessionsView from "@/components/MarketSessionsView";
-import BacktestView from "@/components/BacktestView";
 import { isAdminEmail } from "@/lib/admin";
 import { SettingsProvider, themeVariables, useSettings } from "@/lib/settings";
 import { downloadBackup } from "@/lib/backup";
@@ -25,7 +24,6 @@ import {
   IconBars,
   IconCalculator,
   IconCalendar,
-  IconChart,
   IconDownload,
   IconGlobe,
   IconClock,
@@ -45,7 +43,6 @@ type View =
   | "analytics"
   | "converter"
   | "sessions"
-  | "backtest"
   | "guide"
   | "settings"
   | "profile"
@@ -106,12 +103,6 @@ const TOOLS: NavItem[] = [
     desc: "Live session times",
   },
   {
-    key: "backtest",
-    icon: IconChart,
-    label: "Backtest",
-    desc: "Charts & bar replay",
-  },
-  {
     key: "guide",
     icon: IconBook,
     label: "Forex Guide",
@@ -152,7 +143,6 @@ const VIEW_KEYS: View[] = [
   "analytics",
   "converter",
   "sessions",
-  "backtest",
   "guide",
   "settings",
   "profile",
@@ -514,8 +504,6 @@ function AppInner({ initialView }: { initialView?: View }) {
                 />
               ) : effectiveView === "sessions" ? (
                 <MarketSessionsView />
-              ) : effectiveView === "backtest" ? (
-                <BacktestView />
               ) : effectiveView === "guide" ? (
                 <ForexGuide />
               ) : effectiveView === "settings" ? (
