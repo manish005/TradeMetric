@@ -5,13 +5,11 @@ import { motion } from "framer-motion";
 import type { CalculatorInput, CurrencyKey } from "@/lib/types";
 import { computeInterest } from "@/lib/compound";
 import { todayISO } from "@/lib/format";
-import { fadeUp, panelTransition, stagger } from "@/lib/motion";
+import { fadeUp, stagger } from "@/lib/motion";
 import CalculatorForm from "@/components/CalculatorForm";
 import ResultsPanel from "@/components/ResultsPanel";
 import InfoSection from "@/components/InfoSection";
 import { IconCalculator, IconTrendUp } from "@/components/icons";
-import CurrencyConverter from "@/components/CurrencyConverter";
-
 const DEFAULTS: CalculatorInput = {
   currency: "dollar",
   amount: 1000,
@@ -34,29 +32,7 @@ const DEFAULTS: CalculatorInput = {
   startDate: todayISO(),
 };
 
-function buildParams(input: CalculatorInput): URLSearchParams {
-  const p = new URLSearchParams();
-  p.set("a", String(input.amount));
-  p.set("p", String(input.percent));
-  p.set("pp", input.percentPeriod);
-  p.set("y", String(input.years));
-  p.set("m", String(input.months));
-  p.set("d", String(input.days));
-  p.set("iw", input.includeWeekends ? "y" : "n");
-  p.set("rin", String(input.reinvestPercent));
-  p.set("eh", input.excludeHolidays ? "y" : "n");
-  p.set("wk", input.weekdays.join(","));
-  p.set("rt", input.regType);
-  p.set("dep", String(input.regDeposit));
-  p.set("depp", input.regDepositPeriod);
-  p.set("otd", String(input.oneTimeDeposit));
-  p.set("otdd", input.oneTimeDepositDate);
-  p.set("rw", String(input.regWithdrawal));
-  p.set("rwp", input.regWithdrawalPeriod);
-  p.set("sd", input.startDate);
-  p.set("c", input.currency);
-  return p;
-}
+const SAVE_KEY = "tradermatrix:calc";
 
 function between(low: number, high: number) {
   return (v: string | null, fallback: number): number => {
@@ -116,19 +92,44 @@ function fromParams(qs: string): Partial<CalculatorInput> {
 function initialState(): CalculatorInput {
   if (typeof window === "undefined") return DEFAULTS;
   const qs = window.location.search;
-  if (!qs) return DEFAULTS;
-  return { ...DEFAULTS, ...fromParams(qs) };
+  if (qs) return { ...DEFAULTS, ...fromParams(qs) };
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<CalculatorInput>;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        typeof parsed.amount === "number" &&
+        Number.isFinite(parsed.amount)
+      ) {
+        return { ...DEFAULTS, ...parsed };
+      }
+    }
+  } catch {
+    // corrupted save – fall back to defaults
+  }
+  return DEFAULTS;
 }
 
 export default function Calculator() {
   const [input, setInput] = useState<CalculatorInput>(initialState);
 
-  // Update the URL so the calculator can be shared
+  // Save as JSON so the URL stays clean; rehydrate on next visit
   useEffect(() => {
-    const qs = buildParams(input);
-    const url = `${window.location.pathname}?${qs}`;
-    window.history.replaceState({}, "", url);
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(input));
+    } catch {
+      // storage full/blocked – ignore
+    }
   }, [input]);
+
+  // Once legacy URL params are read, strip them from the address bar
+  useEffect(() => {
+    if (window.location.search) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const result = useMemo(() => computeInterest(input), [input]);
 
@@ -194,13 +195,6 @@ export default function Calculator() {
               }
             />
           </motion.section>
-        </motion.div>
-
-        <motion.div {...panelTransition} className="mt-8">
-          <CurrencyConverter
-            initialValue={result.finalValue}
-            initialCurrency={input.currency}
-          />
         </motion.div>
 
         <InfoSection />

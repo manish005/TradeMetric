@@ -7,6 +7,7 @@ import { CURRENCIES, money, number, round } from "@/lib/format";
 import type { CurrencyKey } from "@/lib/types";
 import { convert, loadRates, type RateIso } from "@/lib/rates";
 import { IconTarget, IconBars } from "@/components/icons";
+import { useSettings, RISK_STYLES } from "@/lib/settings";
 
 const ACCOUNT_ISO: Record<CurrencyKey, RateIso> = {
   dollar: "USD",
@@ -63,12 +64,15 @@ function autoLots(usdEquiv: number): number {
 }
 
 export default function RiskReward() {
+  const settings = useSettings();
   const [accountSize, setAccountSize] = useState(10000);
   const [accountCurr, setAccountCurr] = useState<CurrencyKey>("dollar");
   const [symbol, setSymbol] = useState("EURUSD");
   const [side, setSide] = useState<Side>("buy");
   const [lots, setLots] = useState(1);
-  const [riskPercent, setRiskPercent] = useState(1);
+  const [riskPercent, setRiskPercent] = useState(
+    RISK_STYLES.find((s) => s.id === settings.riskStyle)?.riskPct ?? 1
+  );
   const [ratio, setRatio] = useState<Ratio>("1:3");
   const [entry, setEntry] = useState(1.1);
   const [sl, setSl] = useState(1.095);
@@ -102,20 +106,21 @@ export default function RiskReward() {
   const hasValid = slDist > 0 && accountSize > 0;
 
   // Points = price distance / point size
-  const slPoints = slDist > 0 ? slDist / pair.pointSize : 0;
-  const tpPoints = ratioN * slPoints;
+  // Pips = absolute price difference between entry and TP (or SL) ÷ pip size
+  const entryToTpPips = hasValid ? Math.abs(tp - entry) / pair.pointSize : 0;
+  const entryToSlPips = hasValid ? Math.abs(entry - sl) / pair.pointSize : 0;
 
   const quotePerPoint = pair.pointSize * pair.contractPerLot * activeLots;
   const perPointAccount = convert(quotePerPoint, pair.quote, accountIso, activeRates);
 
-  const loss = round(perPointAccount * slPoints, 2);
-  const profit = round(perPointAccount * tpPoints, 2);
+  const loss = round(perPointAccount * entryToSlPips, 2);
+  const profit = round(perPointAccount * entryToTpPips, 2);
   const riskAmount = round((accountSize * riskPercent) / 100, 2);
 
   // Suggested lots that keep max loss at the risk budget
   const lossPerLot =
     convert(pair.pointSize * pair.contractPerLot, pair.quote, accountIso, activeRates) *
-    slPoints;
+    entryToSlPips;
   const suggestedLots =
     lossPerLot > 0 ? round(riskAmount / lossPerLot, 2) : 0;
 
@@ -139,6 +144,29 @@ export default function RiskReward() {
               Entry · SL · TP → profit &amp; loss in your currency
             </p>
           </div>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-faint">
+            Risk profile
+          </span>
+          {RISK_STYLES.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setRiskPercent(r.riskPct)}
+              title={r.desc}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                settings.riskStyle === r.id
+                  ? "bg-cyan/15 text-cyan ring-1 ring-cyan/40"
+                  : "bg-panel2 text-muted hover:text-ink"
+              }`}
+            >
+              {r.label} · {r.riskPct}%
+            </button>
+          ))}
+          <span className="text-[11px] text-faint">
+            applies your Profile choice {settings.riskStyle} ({RISK_STYLES.find((x) => x.id === settings.riskStyle)?.riskPct}%) to risk %
+          </span>
         </div>
 
         <div className="flex flex-col gap-5">
@@ -328,14 +356,24 @@ export default function RiskReward() {
 
         <div className="grid grid-cols-2 gap-3">
           {[{
-              label: `Take profit ${tpPoints > 0 ? `(${round(tpPoints, 1)} pts)` : ""}${tradeCount > 1 ? ` × ${tradeCount}` : ""}`,
+              label: `Take profit ${entryToTpPips > 0 ? `(${round(entryToTpPips, 1)} pips)` : ""}${tradeCount > 1 ? ` × ${tradeCount}` : ""}`,
               value: money(hasValid ? totalProfit : 0, accountCurr),
               tone: "mint",
             },
             {
-              label: `Stop loss ${slPoints > 0 ? `(${round(slPoints, 1)} pts)` : ""}${tradeCount > 1 ? ` × ${tradeCount}` : ""}`,
+              label: `Stop loss ${entryToSlPips > 0 ? `(${round(entryToSlPips, 1)} pips)` : ""}${tradeCount > 1 ? ` × ${tradeCount}` : ""}`,
               value: money(hasValid ? totalLoss : 0, accountCurr),
               tone: "coral",
+            },
+            {
+              label: "Pips: entry → TP",
+              value: `${round(entryToTpPips, 1)}`,
+              tone: "cyan",
+            },
+            {
+              label: "Pips: entry → SL",
+              value: `${round(entryToSlPips, 1)}`,
+              tone: "amber",
             },
             {
               label: "Risk amount (from SL)",
@@ -395,7 +433,7 @@ export default function RiskReward() {
                 <span className="font-bold text-cyan">
                   {number(tp, priceDigits(pair))}
                 </span>{" "}
-                → {round(slPoints, 1)} pts risk, {round(tpPoints, 1)} pts
+                → {round(entryToSlPips, 1)} pips risk, {round(entryToTpPips, 1)} pips
                 reward. {tradeCount > 1 ? `${tradeCount} orders × ` : "With "}
                 {activeLots} lot{activeLots === 1 ? "" : "s"}, that is ≈{" "}
                 <span className="font-bold text-mint">

@@ -9,6 +9,15 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import type { CurrencyKey } from "@/lib/types";
+
+export type RiskStyleId = "conservative" | "balanced" | "aggressive";
+
+export const RISK_STYLES: { id: RiskStyleId; label: string; riskPct: number; desc: string }[] = [
+  { id: "conservative", label: "Conservative", riskPct: 1, desc: "Protect capital first" },
+  { id: "balanced", label: "Balanced", riskPct: 2, desc: "Steady compounding" },
+  { id: "aggressive", label: "Aggressive", riskPct: 5, desc: "Grow fast, bigger risk" },
+];
 
 export type ThemeVars = {
   bg: string;
@@ -236,7 +245,12 @@ export const THEMES: Theme[] = [
   },
 ];
 
-const DEFAULTS = { fontPct: 100, themeId: "emerald" };
+const DEFAULTS: {
+  fontPct: number;
+  themeId: string;
+  riskStyle: RiskStyleId;
+  currency: CurrencyKey;
+} = { fontPct: 100, themeId: "emerald", riskStyle: "balanced", currency: "dollar" };
 
 function storageKey(uid: string) {
   return `trademetric:prefs:${uid}`;
@@ -245,16 +259,24 @@ function storageKey(uid: string) {
 type SettingsCtx = {
   fontPct: number;
   theme: Theme;
+  riskStyle: RiskStyleId;
+  currency: CurrencyKey;
   setFontPct: (pct: number) => void;
   setThemeId: (id: string) => void;
+  setRiskStyle: (s: RiskStyleId) => void;
+  setCurrency: (c: CurrencyKey) => void;
   reset: () => void;
 };
 
 const Ctx = createContext<SettingsCtx>({
   fontPct: DEFAULTS.fontPct,
   theme: THEMES[0],
+  riskStyle: DEFAULTS.riskStyle,
+  currency: DEFAULTS.currency as CurrencyKey,
   setFontPct: () => {},
   setThemeId: () => {},
+  setRiskStyle: () => {},
+  setCurrency: () => {},
   reset: () => {},
 });
 
@@ -282,6 +304,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const uid = user?.uid ?? null;
   const [fontPct, setFontPct] = useState(DEFAULTS.fontPct);
   const [themeId, setThemeId] = useState(DEFAULTS.themeId);
+  const [riskStyle, setRiskStyle] = useState<RiskStyleId>(DEFAULTS.riskStyle);
+  const [currency, setCurrency] = useState<CurrencyKey>(DEFAULTS.currency as CurrencyKey);
   const hydrated = useRef(false);
 
   useEffect(() => {
@@ -289,13 +313,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(storageKey(uid));
       if (raw) {
-        const p = JSON.parse(raw) as Partial<typeof DEFAULTS>;
+        const p = JSON.parse(raw) as {
+          fontPct?: number;
+          themeId?: string;
+          riskStyle?: RiskStyleId;
+          currency?: CurrencyKey;
+        };
         if (typeof p.fontPct === "number") {
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setFontPct(Math.min(140, Math.max(80, Math.round(p.fontPct))));
         }
         if (typeof p.themeId === "string" && THEMES.some((t) => t.id === p.themeId)) {
           setThemeId(p.themeId);
+        }
+        if (p.riskStyle && RISK_STYLES.some((r) => r.id === p.riskStyle)) {
+          setRiskStyle(p.riskStyle);
+        }
+        if (p.currency && ["dollar", "euro", "pound", "rupee", "yen"].includes(p.currency)) {
+          setCurrency(p.currency);
         }
       }
     } catch {
@@ -309,12 +344,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(
         storageKey(uid),
-        JSON.stringify({ fontPct, themeId })
+        JSON.stringify({ fontPct, themeId, riskStyle, currency })
       );
     } catch {
       // storage busy — ignore
     }
-  }, [uid, fontPct, themeId]);
+  }, [uid, fontPct, themeId, riskStyle, currency]);
 
   const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
 
@@ -323,11 +358,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       value={{
         fontPct,
         theme,
+        riskStyle,
+        currency,
         setFontPct: (p) => setFontPct(Math.min(140, Math.max(80, Math.round(p)))),
         setThemeId,
+        setRiskStyle,
+        setCurrency,
         reset: () => {
           setFontPct(DEFAULTS.fontPct);
           setThemeId(DEFAULTS.themeId);
+          setRiskStyle(DEFAULTS.riskStyle);
+          setCurrency(DEFAULTS.currency as CurrencyKey);
         },
       }}
     >

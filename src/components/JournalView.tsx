@@ -1,10 +1,11 @@
 "use client";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SYMBOLS } from "@/components/ResultsPanel";
 import {
   addJournalEntry,
   deleteJournalEntry,
+  getDeposit,
   getInitialBalance,
   getJournalEntries,
   getJournalVersion,
@@ -17,11 +18,24 @@ import {
   type JournalEntry,
 } from "@/lib/journal";
 import { CURRENCIES, money, round } from "@/lib/format";
-import { IconCalendar, IconEdit, IconTrash } from "@/components/icons";
+import { currentBalance } from "@/lib/analysis";
+import { useSettings, RISK_STYLES } from "@/lib/settings";
+import { IconEdit, IconTrash } from "@/components/icons";
 import type { CurrencyKey } from "@/lib/types";
+
+const TRADE_RULES: Array<{ id: string; label: string }> = [
+  { id: "setup", label: "Taken on a confirmed setup (A+ pattern)" },
+  { id: "overtrading", label: "No overtrading — waited for the next A+ setup" },
+  { id: "sweeps", label: "Checked session sweeps (London/NY liquidity) first" },
+  { id: "htf", label: "Analysed the higher timeframe" },
+  { id: "risk", label: "Respected risk % and position size" },
+  { id: "sl_tp", label: "Stop loss and TP placed before entry" },
+  { id: "emotions", label: "No revenge trading — followed the plan" },
+];
 
 export default function JournalView() {
   useSyncExternalStore(subscribeJournal, getJournalVersion);
+  const { riskStyle } = useSettings();
   const entries = getJournalEntries();
   const projected = getProjected();
 
@@ -33,8 +47,22 @@ export default function JournalView() {
   const [commission, setCommission] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState<JournalEntry | null>(null);
+  const [rules, setRules] = useState<string[]>([]);
 
   const initialBalance = getInitialBalance();
+  const deposit = getDeposit();
+  const running = currentBalance(entries, initialBalance);
+
+  // Prefill: start from the deposit once; every later day starts from the running balance
+  useEffect(() => {
+    if (getInitialBalance() !== 0) return;
+    if (entries.length > 0) {
+      setInitialBalance(currentBalance(entries, 0));
+    } else if (getDeposit() > 0) {
+      setInitialBalance(getDeposit());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries.length]);
 
   const effectiveTarget =
     projected.date === today() ? projected.target : 0;
@@ -49,6 +77,7 @@ export default function JournalView() {
     setProfit(e.profit);
     setLoss(e.loss);
     setCommission(e.commission);
+    setRules(e.rules ?? []);
   };
 
   const cancelEdit = () => {
@@ -58,6 +87,7 @@ export default function JournalView() {
     setProfit(0);
     setLoss(0);
     setCommission(0);
+    setRules([]);
   };
 
   const submit = () => {
@@ -72,6 +102,7 @@ export default function JournalView() {
       commission: Math.max(0, commission),
       projected: effectiveTarget,
       achieved,
+      rules,
     };
 
     let saved: JournalEntry | null = null;
@@ -86,6 +117,7 @@ export default function JournalView() {
     setProfit(0);
     setLoss(0);
     setCommission(0);
+    setRules([]);
 
     if (saved && saved.achieved) {
       setCelebrate(saved);
@@ -95,22 +127,16 @@ export default function JournalView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-mint/25 bg-mint/10 text-mint">
-          <IconCalendar className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-ink">
-            Trading Journal
-          </h2>
-          <p className="mt-0.5 text-[13px] text-muted">
-            Log trades and track compound targets
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full border border-cyan/30 bg-cyan/10 px-2 py-0.5 text-[10px] font-bold text-cyan">
+          Risk:{" "}
+          {RISK_STYLES.find((s) => s.id === riskStyle)?.label ?? "Balanced"} ·{" "}
+          {RISK_STYLES.find((s) => s.id === riskStyle)?.riskPct ?? 2}%
+        </span>
       </div>
 
       {effectiveTarget > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-mint/25 bg-mint/10 px-4 py-3 text-[13px]">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-mint/25 bg-mint/10 px-4 py-3 text-[13px]">
           <span className="font-bold text-mint">Today&apos;s target</span>
           <b className="tabular-nums text-ink">{money(effectiveTarget, currency)}</b>
           <span className="text-faint">
@@ -127,7 +153,7 @@ export default function JournalView() {
         <div className="mt-4 rounded-2xl border border-mint/25 bg-mint/5 p-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[12px] font-bold text-faint">
-              Deposit amount (initial balance)
+              Initial balance (day start)
             </span>
             <input
               type="number"
@@ -140,11 +166,34 @@ export default function JournalView() {
               placeholder="e.g. 1000"
               className="h-10 w-40 rounded-xl border border-line bg-panel2 px-3 text-[14px] font-bold tabular-nums text-mint outline-none transition-colors focus:border-mint/70"
             />
+            <button
+              onClick={() => setInitialBalance(running)}
+              className="inline-flex h-9 items-center rounded-lg border border-cyan/30 bg-cyan/10 px-2.5 text-[11px] font-bold text-cyan transition-colors hover:bg-cyan/20"
+            >
+              Use current: {money(running, currency)}
+            </button>
             <span className="text-[11px] text-faint">
-              Saved for every entry — edit anytime
+              Starts from your deposit, grows with each trade — editable anytime
             </span>
           </div>
         </div>
+
+        {deposit > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1 font-semibold text-muted">
+              Deposit:{" "}
+              <b className="tabular-nums text-ink">{money(deposit, currency)}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-mint/25 bg-mint/10 px-3 py-1 font-semibold text-mint">
+              Growth:{" "}
+              <b className="tabular-nums">
+                {deposit > 0
+                  ? `${running >= 0 ? "+" : "−"}${money(Math.abs(running), currency)} · ${round(((running - deposit) / deposit) * 100, 1)}%`
+                  : money(running, currency)}
+              </b>
+            </span>
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <label className="block sm:col-span-1">
@@ -233,6 +282,52 @@ export default function JournalView() {
             </label>
           </div>
 
+        <div className="mt-4 rounded-2xl border border-line bg-panel2/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-[12px] font-bold uppercase tracking-wider text-muted">
+              Trade rules checklist
+            </h4>
+            <span
+              className={`text-[11px] font-bold tabular-nums ${rules.length === TRADE_RULES.length ? "text-mint" : "text-faint"}`}
+            >
+              {rules.length}/{TRADE_RULES.length}
+              {rules.length === TRADE_RULES.length && " · perfect"}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {TRADE_RULES.map((r) => {
+              const on = rules.includes(r.id);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() =>
+                    setRules((prev) =>
+                      on ? prev.filter((id) => id !== r.id) : [...prev, r.id]
+                    )
+                  }
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-[12.5px] font-semibold transition-colors ${
+                    on
+                      ? "border-mint/40 bg-mint/10 text-mint"
+                      : "border-line bg-panel text-muted hover:border-mint/25 hover:text-ink"
+                  }`}
+                >
+                  <span
+                    className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md border text-[10px] font-black ${
+                      on
+                        ? "border-mint bg-mint text-bg"
+                        : "border-muted/40 text-transparent"
+                    }`}
+                  >
+                    ✓
+                  </span>
+                  {r.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-faint">
               <span>
@@ -307,6 +402,7 @@ export default function JournalView() {
                   <th className="px-3 py-2.5 font-bold text-coral">Loss</th>
                   <th className="px-3 py-2.5 font-bold text-muted">Comm</th>
                   <th className="px-3 py-2.5 font-bold text-ink">Target</th>
+                  <th className="px-3 py-2.5 font-bold text-cyan">Rules</th>
                   <th className="px-3 py-2.5 font-bold text-muted">Status</th>
                   <th className="px-3 py-2.5" />
                 </tr>
@@ -334,6 +430,26 @@ export default function JournalView() {
                     </td>
                     <td className="px-3 py-2 tabular-nums text-amber">
                       {e.projected > 0 ? money(e.projected, currency) : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {e.rules && e.rules.length > 0 ? (
+                        <span
+                          title={TRADE_RULES.filter((r) => e.rules?.includes(r.id))
+                            .map((r) => r.label)
+                            .join("\n")}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                            e.rules.length === TRADE_RULES.length
+                              ? "bg-mint/15 text-mint"
+                              : "bg-panel2 text-cyan"
+                          }`}
+                        >
+                          {e.rules.length}/{TRADE_RULES.length}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-panel2 px-2.5 py-1 text-[11px] font-bold text-faint">
+                          —
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {e.achieved ? (

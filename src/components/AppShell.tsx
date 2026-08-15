@@ -10,20 +10,65 @@ import ProfileView from "@/components/ProfileView";
 import ForexGuide from "@/components/ForexGuide";
 import SettingsView from "@/components/SettingsView";
 import JournalView from "@/components/JournalView";
+import OverviewView from "@/components/OverviewView";
+import AnalyticsView from "@/components/AnalyticsView";
+import CurrencyConverter from "@/components/CurrencyConverter";
 import MotivationModal from "@/components/MotivationModal";
+import AdminView from "@/components/AdminView";
+import MarketSessionsView from "@/components/MarketSessionsView";
+import BacktestView from "@/components/BacktestView";
+import { isAdminEmail } from "@/lib/admin";
 import { SettingsProvider, themeVariables, useSettings } from "@/lib/settings";
+import { downloadBackup } from "@/lib/backup";
 import {
   IconBook,
+  IconBars,
   IconCalculator,
   IconCalendar,
+  IconChart,
+  IconDownload,
+  IconGlobe,
+  IconClock,
   IconLogOut,
   IconMenu,
   IconSettings,
   IconTarget,
+  IconTrendUp,
   IconUser,
 } from "@/components/icons";
 
-const TOOLS = [
+type View =
+  | "overview"
+  | "compound"
+  | "journal"
+  | "risk"
+  | "analytics"
+  | "converter"
+  | "sessions"
+  | "backtest"
+  | "guide"
+  | "settings"
+  | "profile"
+  | "admin";
+
+export type { View };
+
+type NavItem = {
+  key: View;
+  icon: (props: { className?: string }) => React.JSX.Element;
+  label: string;
+  desc: string;
+  accent?: "mint" | "amber";
+  badge?: string;
+};
+
+const TOOLS: NavItem[] = [
+  {
+    key: "overview",
+    icon: IconTrendUp,
+    label: "Today's Overview",
+    desc: "Balance · target · momentum",
+  },
   {
     key: "compound",
     icon: IconCalculator,
@@ -43,6 +88,30 @@ const TOOLS = [
     desc: "Forex points → profit",
   },
   {
+    key: "analytics",
+    icon: IconBars,
+    label: "Analytics",
+    desc: "Equity curve & streaks",
+  },
+  {
+    key: "converter",
+    icon: IconGlobe,
+    label: "Currency Converter",
+    desc: "Live FX conversion",
+  },
+  {
+    key: "sessions",
+    icon: IconClock,
+    label: "Market Sessions",
+    desc: "Live session times",
+  },
+  {
+    key: "backtest",
+    icon: IconChart,
+    label: "Backtest",
+    desc: "Charts & bar replay",
+  },
+  {
     key: "guide",
     icon: IconBook,
     label: "Forex Guide",
@@ -52,23 +121,59 @@ const TOOLS = [
     key: "settings",
     icon: IconSettings,
     label: "Settings",
-    desc: "Font size & themes",
+    desc: "Theme & font size",
   },
-] as const;
+];
 
-type ToolKey = (typeof TOOLS)[number]["key"];
-type View = ToolKey | "profile";
+const ADMIN_NAV: NavItem[] = [
+  {
+    key: "admin",
+    icon: IconBars,
+    label: "Admin",
+    desc: "Console · users · activity",
+    accent: "amber",
+    badge: "HRM",
+  },
+  {
+    key: "settings",
+    icon: IconSettings,
+    label: "Settings",
+    desc: "Theme & font size",
+  },
+];
 
-export default function AppShell() {
+const ADMIN_VIEWS = new Set<View>(["admin", "settings", "profile"]);
+
+const VIEW_KEYS: View[] = [
+  "overview",
+  "compound",
+  "journal",
+  "risk",
+  "analytics",
+  "converter",
+  "sessions",
+  "backtest",
+  "guide",
+  "settings",
+  "profile",
+  "admin",
+];
+
+function viewFromPath(path?: string): View | null {
+  const p = (path ?? (typeof window !== "undefined" ? window.location.pathname : "")).replace(/^\/+|\/+$/g, "");
+  return (VIEW_KEYS as string[]).includes(p) ? (p as View) : null;
+}
+
+export default function AppShell({ initialView }: { initialView?: View }) {
   return (
     <SettingsProvider>
-      <AppInner />
+      <AppInner initialView={initialView} />
     </SettingsProvider>
   );
 }
 
-function AppInner() {
-  const [view, setView] = useState<View>("compound");
+function AppInner({ initialView }: { initialView?: View }) {
+  const [view, setView] = useState<View>(() => viewFromPath() ?? initialView ?? "compound");
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [showMotivation, setShowMotivation] = useState(false);
@@ -85,14 +190,66 @@ function AppInner() {
     }
   }, [user]);
 
-  const isProfile = view === "profile";
-  const active = TOOLS.find((t) => t.key === view);
-  const ActiveIcon = isProfile ? IconUser : (active?.icon ?? IconUser);
+  const isAdmin = isAdminEmail(user?.email);
 
-  const openTool = (key: ToolKey) => {
+  // Pure admin menus — admins only ever render admin/settings/profile
+  const effectiveView = isAdmin && !ADMIN_VIEWS.has(view) ? "admin" : view;
+
+  const navItems = isAdmin ? ADMIN_NAV : TOOLS;
+
+  const isProfile = effectiveView === "profile";
+  const active = navItems.find((t) => t.key === effectiveView);
+  const headerMeta =
+    effectiveView === "admin"
+      ? { label: "Admin", desc: "Console · users · sessions · revenue" }
+      : effectiveView === "profile"
+        ? { label: "Profile", desc: "Your account details" }
+        : active
+          ? { label: active.label, desc: active.desc }
+          : { label: "", desc: "" };
+  const ActiveIcon =
+    effectiveView === "admin"
+      ? IconBars
+      : isProfile
+        ? IconUser
+        : (active?.icon ?? IconUser);
+
+  const openTool = (key: View) => {
     setView(key);
     setNavOpen(false);
+    window.history.pushState(null, "", `/${key}`);
   };
+
+  useEffect(() => {
+    const applyPath = () => {
+      const v = viewFromPath();
+      if (isAdmin) {
+        setView(v && ADMIN_VIEWS.has(v) ? v : "admin");
+        if (window.location.pathname !== `/${v && ADMIN_VIEWS.has(v) ? v : "admin"}`) {
+          window.history.replaceState(null, "", `/${v && ADMIN_VIEWS.has(v) ? v : "admin"}`);
+        }
+        return;
+      }
+      if (v) {
+        setView(v);
+      } else if (window.location.pathname === "/") {
+        window.history.replaceState(null, "", `/${view}`);
+      }
+    };
+    window.addEventListener("popstate", applyPath);
+    const pv = viewFromPath();
+    const resolved = pv
+      ? isAdmin && !ADMIN_VIEWS.has(pv)
+        ? "admin"
+        : pv
+      : isAdmin
+        ? "admin"
+        : initialView ?? "compound";
+    if (window.location.pathname !== `/${resolved}`) {
+      window.history.replaceState(null, "", `/${resolved}`);
+    }
+    return () => window.removeEventListener("popstate", applyPath);
+  }, [view, initialView, isAdmin]);
 
   return (
     <div
@@ -140,35 +297,41 @@ function AppInner() {
           </button>
         </div>
         <nav className="flex flex-col gap-1.5 p-3">
-          <span className="px-2 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-faint">
-            Tools
-          </span>
-          {TOOLS.map((t) => {
+          {navItems.map((t) => {
             const TabIcon = t.icon;
-            const isActive = view === t.key;
+            const isActive = effectiveView === t.key;
+            const accent = t.accent ?? "mint";
             return (
               <button
                 key={t.key}
                 onClick={() => openTool(t.key)}
-                className={`relative flex flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                className={`relative flex flex-col items-start gap-0 py-2 rounded-xl px-3 text-left transition-colors ${
                   isActive ? "text-ink" : "text-muted hover:text-ink"
                 }`}
               >
                 {isActive && (
                   <motion.span
                     layoutId="nav-pill"
-                    className="absolute inset-0 rounded-xl bg-mint/10 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.32)]"
+                    className={`absolute inset-0 rounded-xl ${
+                      accent === "amber"
+                        ? "bg-amber/10 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.32)]"
+                        : "bg-mint/10 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.32)]"
+                    }`}
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
                 <span className="relative flex items-center gap-2.5 text-sm font-semibold">
                   <TabIcon
-                    className={`h-4.5 w-4.5 ${isActive ? "text-mint" : ""}`}
+                    className={`h-4.5 w-4.5 ${
+                      isActive ? (accent === "amber" ? "text-amber" : "text-mint") : ""
+                    }`}
                   />
                   {t.label}
-                </span>
-                <span className="relative pl-7 text-[11px] text-faint">
-                  {t.desc}
+                  {t.badge && (
+                    <span className="rounded-full bg-amber/15 px-1.5 py-0.5 text-[9px] font-black text-amber">
+                      {t.badge}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -226,10 +389,10 @@ function AppInner() {
               </span>
               <div className="min-w-0">
                 <h1 className="truncate text-[15px] font-bold text-ink">
-                  {active ? active.label : "Profile"}
+                  {headerMeta.label}
                 </h1>
                 <p className="hidden text-[11px] text-faint sm:block">
-                  {active ? active.desc : "Your account details"}
+                  {headerMeta.desc}
                 </p>
               </div>
             </motion.div>
@@ -294,6 +457,16 @@ function AppInner() {
                     <button
                       onClick={() => {
                         setMenuOpen(false);
+                        if (user?.uid) downloadBackup(user.uid);
+                      }}
+                      className="mt-1 inline-flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-muted transition-colors hover:bg-panel2 hover:text-mint"
+                    >
+                      <IconDownload className="h-4 w-4" />
+                      Export data
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
                         void signOutUser();
                       }}
                       className="mt-1 inline-flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-muted transition-colors hover:bg-panel2 hover:text-coral"
@@ -322,15 +495,30 @@ function AppInner() {
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="relative"
             >
-              {view === "compound" ? (
+              {effectiveView === "overview" ? (
+                <OverviewView />
+              ) : effectiveView === "admin" ? (
+                <AdminView />
+              ) : effectiveView === "compound" ? (
                 <Calculator />
-              ) : view === "journal" ? (
+              ) : effectiveView === "journal" ? (
                 <JournalView />
-              ) : view === "risk" ? (
+              ) : effectiveView === "risk" ? (
                 <RiskReward />
-              ) : view === "guide" ? (
+              ) : effectiveView === "analytics" ? (
+                <AnalyticsView />
+              ) : effectiveView === "converter" ? (
+                <CurrencyConverter
+                  initialValue={1000}
+                  initialCurrency={settings.currency}
+                />
+              ) : effectiveView === "sessions" ? (
+                <MarketSessionsView />
+              ) : effectiveView === "backtest" ? (
+                <BacktestView />
+              ) : effectiveView === "guide" ? (
                 <ForexGuide />
-              ) : view === "settings" ? (
+              ) : effectiveView === "settings" ? (
                 <SettingsView />
               ) : (
                 <ProfileView user={user} />

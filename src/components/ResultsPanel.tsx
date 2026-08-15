@@ -93,7 +93,7 @@ export default function ResultsPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `trademetric-${breakdown}-breakdown.csv`;
+    a.download = `tradermatrix-${breakdown}-breakdown.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -101,11 +101,11 @@ export default function ResultsPanel({
   const copyShare = async () => {
     try {
       await navigator.clipboard.writeText(
-        window.location.host.startsWith("trademetric-") ||
-          window.location.host.endsWith(".vercel.app")
-          ? "https://trademetric-two.vercel.app"
-          : window.location.href
-      );
+      window.location.host === "tradermatrix.in" ||
+        window.location.host === "www.tradermatrix.in"
+        ? window.location.href
+        : "https://tradermatrix.in"
+    );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

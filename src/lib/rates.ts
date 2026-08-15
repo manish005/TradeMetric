@@ -2,6 +2,14 @@ export type RateIso = "USD" | "EUR" | "GBP" | "INR" | "JPY";
 
 export const RATE_ISOS: RateIso[] = ["USD", "EUR", "GBP", "INR", "JPY"];
 
+export const CURRENCY_ISO: Record<string, RateIso> = {
+  dollar: "USD",
+  euro: "EUR",
+  pound: "GBP",
+  rupee: "INR",
+  yen: "JPY",
+};
+
 export const FALLBACK_RATES: Record<string, number> = {
   USD: 1,
   EUR: 0.92,

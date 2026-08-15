@@ -2,27 +2,13 @@
 import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { THEMES, useSettings, themeVariables } from "@/lib/settings";
-import { IconSettings, IconReset } from "@/components/icons";
+import { IconReset } from "@/components/icons";
 
 export default function SettingsView() {
   const { fontPct, theme, setFontPct, setThemeId, reset } = useSettings();
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-mint/25 bg-mint/10 text-mint">
-          <IconSettings className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-ink">
-            Settings
-          </h2>
-          <p className="mt-0.5 text-[13px] text-muted">
-            Personalize your dashboard — saved per account
-          </p>
-        </div>
-      </div>
-
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="rounded-3xl border border-line bg-panel/70 p-5 backdrop-blur sm:p-6">
           <div className="flex items-center justify-between gap-3">

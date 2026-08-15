@@ -2,7 +2,7 @@ import { initializeApp, type FirebaseApp } from "firebase/app";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCeavPGDQCbRl_o3xDTAekBNNw-AdSTdlU",
-  authDomain: "growtherr.firebaseapp.com",
+  authDomain: "www.tradermatrix.in",
   projectId: "growtherr",
   storageBucket: "growtherr.firebasestorage.app",
   messagingSenderId: "1001651518110",

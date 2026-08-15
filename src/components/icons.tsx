@@ -26,6 +26,19 @@ export const IconCalculator = (p: SVGProps<SVGSVGElement>) =>
     </>
   ));
 
+export const IconChart = (p: SVGProps<SVGSVGElement>) =>
+  base(p, (
+    <>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="M8 15v-4" />
+      <path d="M8 11v-2" />
+      <rect x="6.4" y="9" width="3.2" height="5" rx="0.5" fill="currentColor" stroke="none" />
+      <path d="M16 13V7" />
+      <path d="M16 8V4" />
+      <rect x="14.4" y="6" width="3.2" height="9" rx="0.5" fill="currentColor" stroke="none" />
+    </>
+  ));
+
 export const IconTarget = (p: SVGProps<SVGSVGElement>) =>
   base(p, (
     <>
@@ -105,6 +118,14 @@ export const IconSwap = (p: SVGProps<SVGSVGElement>) =>
     <>
       <path d="M4 7h13M14 3l4 4-4 4" />
       <path d="M20 17H7M10 13l-4 4 4 4" />
+    </>
+  ));
+
+export const IconClock = (p: SVGProps<SVGSVGElement>) =>
+  base(p, (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
     </>
   ));
 

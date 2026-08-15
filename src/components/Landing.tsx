@@ -59,16 +59,24 @@ const STATS = [
 
 const FAQS = [
   {
-    q: "Is TradeMetric free?",
+    q: "Is TraderMatrix free?",
     a: "Yes — completely free forever. No credit card, no trial clock, no paywall. Every calculator, table and export is unlocked.",
   },
   {
+    q: "What is a compound interest calculator?",
+    a: "A compound interest calculator works out how a balance grows when earned interest is added back to the principal and itself earns interest. TraderMatrix is a free compound interest calculator that compounds day-by-day: set the daily return, reinvest rate and trading days, and it shows the full amortization table plus year-level totals. At 1% daily on ₹10,000 with full reinvestment over 260 trading days, the balance grows to over ₹1.3 lakh because each day's profit earns profit the next day.",
+  },
+  {
+    q: "What is the difference between daily compounding and simple interest?",
+    a: "With simple interest, only the original principal earns interest. With daily compounding — also called daily interest or daily compounding — every day's profit is added to the balance, so it starts earning profit too. The TraderMatrix daily compounding calculator lets you control the reinvest rate, so you can compare a simple-interest projection against full daily compounding side by side.",
+  },
+  {
     q: "Is my data private?",
-    a: "Extremely. All calculations run locally in your browser and nothing is uploaded. Optional Google sign-in exists only so TradeMetric remembers your saved workspace — we never store or sell your numbers.",
+    a: "Extremely. All calculations run locally in your browser and nothing is uploaded. Optional Google sign-in exists only so TraderMatrix remembers your saved workspace — we never store or sell your numbers.",
   },
   {
     q: "Why do my results not match a simple annual formula?",
-    a: "Because TradeMetric compounds day-by-day instead of annually. The 10-service-golden-test suite is locked to real market day counts (365, 260 business days), so your numbers match what daily reinvestment actually produces.",
+    a: "Because TraderMatrix compounds day-by-day instead of annually. The 10-service-golden-test suite is locked to real market day counts (365, 260 business days), so your numbers match what daily reinvestment actually produces.",
   },
   {
     q: "Can I include deposits, withdrawals and top-ups?",
@@ -79,13 +87,21 @@ const FAQS = [
     a: "Yes. Exclude weekends, pick your own trading days, or skip U.S. market holidays. Trading-day counts are shown alongside calendar days.",
   },
   {
+    q: "How do I calculate daily compound interest manually?",
+    a: "Multiply your balance by the daily return, add reinvested profit to the balance, and repeat every day. Example: ₹10,000 at 1% daily — day 1 ends at ₹10,100, day 2 at ₹10,201, day 3 at ₹10,303.02. TraderMatrix runs this exact day-by-day math for any rate, deposit or withdrawal plan.",
+  },
+  {
+    q: "What is a pip and how do I calculate pip value in INR?",
+    a: "A pip is the smallest quoted decimal move in a currency pair price. Pip value depends on the pair and your lot size — for Indian traders it is converted into INR at the live USD/INR rate. TraderMatrix computes pip value for EURUSD, GBPUSD, USDJPY, gold and more using each symbol's exact point size.",
+  },
+  {
     q: "Is this financial advice?",
-    a: "No. TradeMetric produces illustrative projections only — it is a planning tool, not a recommendation. Nothing here is financial advice.",
+    a: "No. TraderMatrix produces illustrative projections only — it is a planning tool, not a recommendation. Nothing here is financial advice.",
   },
 ];
 
 export default function Landing() {
-  const { busy, signInWithGoogle } = useAuth();
+  const { busy, error, signInWithGoogle } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
@@ -131,9 +147,9 @@ export default function Landing() {
             variants={fadeUp}
             className="max-w-4xl text-5xl font-black leading-[1.05] tracking-tight text-ink sm:text-7xl"
           >
-            Watch your money{" "}
+            Daily compound{" "}
             <span className="bg-gradient-to-r from-mint via-teal to-cyan bg-clip-text text-transparent">
-              grow daily
+              interest calculator
             </span>
           </motion.h1>
 
@@ -141,9 +157,12 @@ export default function Landing() {
             variants={fadeUp}
             className="mt-6 max-w-2xl text-base leading-relaxed text-muted sm:text-lg"
           >
-            TradeMetric projects daily compound interest on your investments and
-            helps you plan Forex trades with risk/reward math — weekends,
-            holidays, currencies and exact point values included.
+            TraderMatrix is a free compound interest calculator that projects
+            your money with true daily compounding — day-by-day reinvestment
+            math plus Forex risk/reward planning, with weekends, holidays,
+            currencies and exact point values included. Indian traders get
+            everything in INR with live pip values and forex market hours
+            in IST.
           </motion.p>
 
           <motion.div variants={fadeUp} className="mt-10 flex w-full max-w-md flex-col gap-3">
@@ -159,6 +178,9 @@ export default function Landing() {
               Free forever. No credit card. Your calculations never leave this
               browser.
             </p>
+            {error && (
+              <p className="text-[12px] font-bold text-coral">{error}</p>
+            )}
           </motion.div>
 
           <motion.div
@@ -206,6 +228,89 @@ export default function Landing() {
               </p>
             </motion.div>
           ))}
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="grid grid-cols-1 gap-4 pb-20 lg:grid-cols-2"
+        >
+          <div className="rounded-3xl border border-line bg-panel/70 p-6 backdrop-blur sm:p-8">
+            <h2 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">
+              Free forex calculator suite for{" "}
+              <span className="bg-gradient-to-r from-mint to-cyan bg-clip-text text-transparent">
+                Indian traders
+              </span>
+            </h2>
+            <p className="mt-4 text-[13.5px] leading-relaxed text-muted">
+              Stop doing forex math in your head. TraderMatrix brings every
+              number a day trader needs into one dashboard — pip value
+              calculator with USD to INR conversion, forex lot size calculator
+              for MT4 position sizing, margin calculator for leverage
+              planning and a risk reward ratio calculator with stop loss and
+              take profit in pips. Every tool converts pip value automatically
+              so a EURUSD trade shows its value in rupees alongside dollars.
+            </p>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+              Forex lot size and position sizing is the difference between
+              surviving drawdowns and blowing up an account. The risk
+              calculator starts from three inputs — account balance, risk per
+              trade and stop loss in pips — and returns the exact lot size to
+              trade. Set a daily profit target and the risk reward calculator
+              shows whether one clean A+ setup covers your daily compound
+              goal.
+            </p>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+              For compounding traders, the daily compound interest calculator
+              is a projection tool: pick a daily return percentage, reinvest
+              rate, trading days and deposits, and you get year-level totals.
+              Everything runs in this browser in a few milliseconds.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div className="rounded-3xl border border-line bg-panel/70 p-6 backdrop-blur sm:p-8">
+              <h3 className="text-lg font-bold text-ink">
+                Forex market hours in IST
+              </h3>
+              <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+                Indian traders often miss the best entries because they trade
+                the wrong session. The forex market stays open 24 hours on
+                weekdays: Sydney opens 5:30 am IST, Tokyo 6:30 am IST, London
+                at 12:30 pm IST and New York at 5:30 pm IST. The London–New
+                York overlap (5:30 pm to 8:00 pm IST) is when volatility is
+                highest and trends move the fastest.
+              </p>
+              <h4 className="mt-4 text-[12px] font-bold uppercase tracking-wider text-muted">
+                Best time to trade forex in India
+              </h4>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+                It depends on your schedule and pair. EURUSD and GBPUSD trend
+                during London (12:30 pm – 5:30 pm IST), while USDJPY follows
+                Tokyo. Forex is closed on Saturday and Sunday — use weekend
+                hours to plan Monday trades, exactly as the market sessions
+                calendar on TraderMatrix shows with a live session clock.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-mint/25 bg-gradient-to-br from-mint/10 via-panel to-cyan/10 p-6 backdrop-blur sm:p-8">
+              <h3 className="text-lg font-bold text-ink">
+                How the daily compounding math works
+              </h3>
+              <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+                This compound interest calculator runs on the daily compounding
+                formula A = P × (1 + r)ⁿ where P is principal, r is the daily
+                return and n is the number of trading days. TraderMatrix
+                compounds day-by-day instead of applying an annual rate once,
+                so reinvested profit itself earns profit — the same day-by-day
+                math any daily interest calculator applies per period. With
+                260 business days a year, a 1% daily return compounds past an
+                annual return of 1,200% only when the profit is reinvested —
+                the reinvest rate dial controls exactly that.
+              </p>
+            </div>
+          </div>
         </motion.section>
 
         <motion.section

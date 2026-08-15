@@ -1,15 +1,15 @@
 <div align="center">
 
-# 📈 TradeMetric
+# 📈 TraderMatrix
 
 **Daily compound interest & Forex planning, in your browser.**
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?logo=vercel&logoColor=white)](https://trademetric-two.vercel.app)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?logo=vercel&logoColor=white)](https://tradermatrix.in)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 
-**Project tomorrow's growth, today** — [Live App](https://trademetric-two.vercel.app)
+**Project tomorrow's growth, today** — [\*\*\*Live App\*\*\*](https://tradermatrix.in)
 
 </div>
 
@@ -32,7 +32,7 @@
 
 | | |
 |---|---|
-| 🌍 **Production** | [https://trademetric-two.vercel.app](https://trademetric-two.vercel.app) |
+| 🌍 **Production** | [https://tradermatrix.in](https://tradermatrix.in) |
 | 🧪 **Golden test suite** | 10/10 checks lock the compound math against live market numbers — run with `npm run verify` |
 
 ## 🚀 Tech Stack
@@ -89,7 +89,7 @@ src/
 
 ## ⚖️ Disclaimer
 
-TradeMetric provides **illustrative projections only** — nothing here is financial advice. All calculations run locally in your browser; results are estimates, not guarantees.
+TraderMatrix provides **illustrative projections only** — nothing here is financial advice. All calculations run locally in your browser; results are estimates, not guarantees.
 
 ---
 

@@ -15,9 +15,9 @@ export default function Footer() {
         <div className="text-[13px] text-muted">
           <h3 className="mb-3 text-sm font-bold text-ink">Disclaimer</h3>
           <p className="leading-relaxed">
-            Whilst every effort has been made in building TradeMetric, we are not
+            Whilst every effort has been made in building TraderMatrix, we are not
             to be held liable for any damages or monetary losses arising from
-            its use. TradeMetric provides projections for illustrative purposes
+            its use. TraderMatrix provides projections for illustrative purposes
             only — nothing here is financial advice.
           </p>
         </div>
@@ -31,7 +31,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-line py-5 text-center text-[12px] text-faint">
-        © {new Date().getFullYear()} TradeMetric — Made for growing.
+        © {new Date().getFullYear()} TraderMatrix — Made for growing.
       </div>
     </footer>
   );

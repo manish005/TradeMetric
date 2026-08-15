@@ -28,7 +28,7 @@ export function TradeMetricLogo({ className = "" }: { className?: string }) {
         T
       </span>
       <span className="text-xl font-extrabold tracking-tight text-ink">
-        TradeMetric
+        TraderMatrix
       </span>
     </span>
   );

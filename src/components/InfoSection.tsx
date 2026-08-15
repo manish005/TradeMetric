@@ -47,7 +47,7 @@ export default function InfoSection() {
           high risk — you can lose more than your initial investment.
         </p>
         <p className="text-[13px] text-faint">
-          TradeMetric is for illustration only and does not constitute financial
+          TraderMatrix is for illustration only and does not constitute financial
           advice. We don&apos;t offer investment opportunities or promise
           returns — please consult a qualified independent financial adviser.
         </p>
@@ -77,7 +77,7 @@ export default function InfoSection() {
         <p>
           For an <strong className="text-ink">annual</strong> rate, the daily
           rate is <span className="font-mono text-ink">r/365</span>. With the
-          TradeMetric reinvest rate, only your chosen percentage of each
+          TraderMatrix reinvest rate, only your chosen percentage of each
           day&apos;s gain is kept compounding — the rest is paid out as cash.
         </p>
       </Section>
@@ -100,7 +100,7 @@ export default function InfoSection() {
 
       <Section title="Formula &amp; methods" kicker="Transparency">
         <p>
-          TradeMetric compounds day-by-day across the calendar from your start
+          TraderMatrix compounds day-by-day across the calendar from your start
           date to the end date (start + years, months &amp; days). Each
           included day: interest = balance × daily rate, then your reinvest %
           stays in and the rest is cashed out. Deposits are credited at the end
