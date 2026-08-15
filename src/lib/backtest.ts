@@ -7,16 +7,50 @@ export interface Candle {
   v: number;
 }
 
-export type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+export type Timeframe =
+  | "1m"
+  | "3m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "45m"
+  | "1h"
+  | "2h"
+  | "4h"
+  | "1d"
+  | "1w"
+  | "1M"
+  | "1y";
 
 export const TIMEFRAMES: Array<{ key: Timeframe; label: string; ms: number }> = [
   { key: "1m", label: "1m", ms: 60_000 },
+  { key: "3m", label: "3m", ms: 180_000 },
   { key: "5m", label: "5m", ms: 300_000 },
   { key: "15m", label: "15m", ms: 900_000 },
+  { key: "30m", label: "30m", ms: 1_800_000 },
+  { key: "45m", label: "45m", ms: 2_700_000 },
   { key: "1h", label: "1h", ms: 3_600_000 },
+  { key: "2h", label: "2h", ms: 7_200_000 },
   { key: "4h", label: "4h", ms: 14_400_000 },
   { key: "1d", label: "1d", ms: 86_400_000 },
+  { key: "1w", label: "1w", ms: 604_800_000 },
+  { key: "1M", label: "1M", ms: 2_592_000_000 },
+  { key: "1y", label: "1y", ms: 31_536_000_000 },
 ];
+
+const BINANCE_TFS = new Set<Timeframe>([
+  "1m",
+  "3m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "2h",
+  "4h",
+  "1d",
+  "1w",
+  "1M",
+]);
 
 export interface SymbolSpec {
   id: string;
@@ -153,7 +187,7 @@ export interface LoadedSeries {
 }
 
 export async function loadSeries(symbol: SymbolSpec, tf: Timeframe): Promise<LoadedSeries> {
-  if (symbol.binance) {
+  if (symbol.binance && BINANCE_TFS.has(tf)) {
     const live = await fetchBinanceCandles(symbol.binance, tf);
     if (live && live.length > 20) {
       return { candles: live, source: "live" };
@@ -177,7 +211,7 @@ export function fmtPrice(v: number, pip: number): string {
 export function fmtTime(t: number, tfMs: number): string {
   const d = new Date(t);
   if (tfMs >= 86_400_000) {
-    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   }
   if (tfMs >= 3_600_000) {
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " " +

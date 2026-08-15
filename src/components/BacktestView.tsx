@@ -43,6 +43,10 @@ export default function BacktestView() {
   const [playing, setPlaying] = useState(false);
   const [speedIdx, setSpeedIdx] = useState(0);
 
+  const [range, setRange] = useState<{ from: number; to: number } | null>(null);
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+
   const [cross, setCross] = useState<{ idx: number; px: number; py: number } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 480 });
 
@@ -52,7 +56,7 @@ export default function BacktestView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; start: number; step: number; moved: boolean } | null>(null);
-  const viewRef = useRef({ winStart: 0, end: 0, step: 10, w: 800, len: 0 });
+  const viewRef = useRef({ winStart: 0, end: 0, step: 10, w: 800, len: 0, rangeTo: 0 });
 
   const len = series?.length ?? 0;
   const loading = series === null;
@@ -63,7 +67,14 @@ export default function BacktestView() {
 
   // mirror latest view into a ref for the playback clock (reads after renders only)
   useEffect(() => {
-    viewRef.current = { winStart, end: endIndex, step: candleStep, w: canvasSize.w, len };
+    viewRef.current = {
+      winStart,
+      end: endIndex,
+      step: candleStep,
+      w: canvasSize.w,
+      len,
+      rangeTo: range?.to ?? len,
+    };
   });
 
   // data request — bumped in event handlers only
@@ -80,6 +91,7 @@ export default function BacktestView() {
   const requestTf = (t: Timeframe) => {
     setTf(t);
     setPlaying(false);
+    setRange(null);
     setSeries(null);
     setCross(null);
     setRequest({ sym: request.sym, tf: t });
@@ -94,6 +106,9 @@ export default function BacktestView() {
       setEndIndex(res.candles.length - 1);
       setWinStart(Math.max(0, res.candles.length - DEFAULT_VISIBLE));
       setCross(null);
+      setRange(null);
+      setFromDate(new Date(res.candles[0]?.t ?? Date.now()).toISOString().slice(0, 10));
+      setToDate(new Date(res.candles[res.candles.length - 1]?.t ?? Date.now()).toISOString().slice(0, 10));
     });
     return () => {
       cancelled = true;
@@ -121,6 +136,10 @@ export default function BacktestView() {
         return;
       }
       const next = v.end + 1;
+      if (next > v.rangeTo) {
+        setPlaying(false);
+        return;
+      }
       const count = Math.max(8, Math.floor((v.w - PAD_L - PAD_R) / v.step));
       if (next - v.winStart > count - 2) {
         setWinStart(Math.max(0, next - count + 3));
@@ -272,17 +291,36 @@ export default function BacktestView() {
     draw();
   }, [draw]);
 
-  // wheel zoom (non-passive to preventDefault)
+  // wheel zoom (non-passive to preventDefault), anchored at the cursor
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      setCandleStep((s) => Math.min(MAX_STEP, Math.max(MIN_STEP, s * (e.deltaY > 0 ? 1.14 : 0.88))));
+      const v = viewRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const plotW = v.w - PAD_L - PAD_R;
+      const curIdx = Math.min(
+        v.end,
+        Math.max(0, leftIdxOf(v.len, v.end, v.step, plotW) + Math.floor((x - PAD_L) / v.step))
+      );
+      const nstep = Math.min(MAX_STEP, Math.max(MIN_STEP, v.step * (e.deltaY > 0 ? 1.14 : 0.88)));
+      const nLeft = curIdx - Math.floor((x - PAD_L) / nstep);
+      setCandleStep(nstep);
+      setWinStart(Math.max(0, Math.min(v.end - 8, nLeft)));
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
+
+  const zoomButton = (dir: 1 | -1) => {
+    const v = viewRef.current;
+    const nstep = Math.min(MAX_STEP, Math.max(MIN_STEP, v.step * (dir === 1 ? 0.82 : 1.2)));
+    const count = Math.max(8, Math.floor((v.w - PAD_L - PAD_R) / nstep));
+    setCandleStep(nstep);
+    setWinStart(Math.max(0, Math.min(v.end - count + 25, v.end - 8)));
+  };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     dragRef.current = { x: e.clientX, start: winStart, step: candleStep, moved: false };
@@ -329,19 +367,50 @@ export default function BacktestView() {
   const lastDelta = lastCandle ? ((lastCandle.c - lastCandle.o) / lastCandle.o) * 100 : 0;
 
   const togglePlay = () => {
-    if (!playing && (endIndex >= len - 1 || endIndex <= winStart)) {
-      setEndIndex(Math.max(winStart + 1, winStart + Math.floor(Math.min(120, DEFAULT_VISIBLE) * 0.4)));
+    const bound = range?.to ?? len - 1;
+    if (!playing && endIndex >= bound) {
+      setEndIndex(range ? range.from : Math.max(winStart + 1, winStart + 3));
     }
     setPlaying((p) => !p);
   };
   const goLive = () => {
     setPlaying(false);
+    setRange(null);
     setEndIndex(len - 1);
     setWinStart(Math.max(0, len - DEFAULT_VISIBLE));
   };
   const scrub = (v: number) => {
     setPlaying(false);
-    setEndIndex(Math.min(v, len - 1));
+    const bound = range?.to ?? len - 1;
+    setEndIndex(Math.max(range?.from ?? 0, Math.min(v, bound)));
+  };
+  const cutRange = () => {
+    if (!series || !fromDate || !toDate) return;
+    const fromMs = new Date(`${fromDate}T00:00:00`).getTime();
+    const toMs = new Date(`${toDate}T23:59:59.999`).getTime();
+    let from = series.findIndex((c) => c.t >= fromMs);
+    if (from === -1) from = series.length - 1;
+    let to = series.length - 1;
+    for (let i = series.length - 1; i >= 0; i--) {
+      if (series[i].t <= toMs) {
+        to = i;
+        break;
+      }
+    }
+    to = Math.max(0, to);
+    const lo = Math.min(from, to);
+    const hi = Math.max(from, to);
+    if (range && range.from === lo && range.to === hi) return;
+    setRange({ from: lo, to: hi });
+    setPlaying(false);
+    setEndIndex(lo);
+    setWinStart(Math.max(0, lo - DEFAULT_VISIBLE));
+  };
+  const clearRange = () => {
+    setPlaying(false);
+    setRange(null);
+    setEndIndex(len - 1);
+    setWinStart(Math.max(0, len - DEFAULT_VISIBLE));
   };
 
   return (
@@ -416,12 +485,12 @@ export default function BacktestView() {
           )}
         </div>
 
-        <div className="grid grid-cols-6 gap-1 overflow-hidden rounded-xl border border-line bg-panel2 p-1">
+        <div className="flex flex-wrap gap-1 overflow-hidden rounded-xl border border-line bg-panel2 p-1">
           {TIMEFRAMES.map((t) => (
             <button
               key={t.key}
               onClick={() => requestTf(t.key)}
-              className={`rounded-[10px] px-2 py-2 text-[12px] font-bold transition-all ${
+              className={`min-w-11 rounded-[10px] px-2 py-2 text-[12px] font-bold transition-all ${
                 tf === t.key
                   ? "bg-mint/15 text-mint shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]"
                   : "text-muted hover:text-ink"
@@ -448,6 +517,64 @@ export default function BacktestView() {
                 {lastDelta >= 0 ? "+" : ""}
                 {lastDelta.toFixed(2)}%
               </span>
+            </span>
+          )}
+        </div>
+
+        {/* Date range + scissors cut */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          <label className="flex items-center gap-2 rounded-xl border border-line bg-panel2 px-2.5 py-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-faint">From</span>
+            <input
+              type="date"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="bg-transparent text-[12px] font-semibold text-ink outline-none [color-scheme:dark]"
+            />
+          </label>
+          <label className="flex items-center gap-2 rounded-xl border border-line bg-panel2 px-2.5 py-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-faint">To</span>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => setToDate(e.target.value)}
+              className="bg-transparent text-[12px] font-semibold text-ink outline-none [color-scheme:dark]"
+            />
+          </label>
+          <button
+            onClick={cutRange}
+            title="Cut candles between the dates and replay the segment"
+            className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-[12px] font-bold transition-all ${
+              range
+                ? "border-coral/50 bg-coral/10 text-coral hover:bg-coral/20"
+                : "border-line bg-panel2 text-muted hover:border-mint/50 hover:text-mint"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6" cy="6" r="2.4" />
+              <circle cx="6" cy="18" r="2.4" />
+              <path d="M8.1 7.5L20 19" />
+              <path d="M8.1 16.5L20 5" />
+            </svg>
+            {range ? "Cut again" : "Cut candles"}
+          </button>
+          {range && (
+            <button
+              onClick={clearRange}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-panel2 px-3.5 text-[12px] font-bold text-muted transition-colors hover:border-mint/50 hover:text-mint"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                <path d="M4 4l16 16" />
+                <path d="M20 4L4 20" />
+              </svg>
+              Clear
+            </button>
+          )}
+          {range && (
+            <span className="rounded-full bg-amber/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber">
+              Segment {range.from + 1}–{range.to + 1} of {len}
             </span>
           )}
         </div>
@@ -508,6 +635,28 @@ export default function BacktestView() {
               onPointerLeave={onPointerLeave}
             />
 
+            {/* zoom controls (touch-friendly) */}
+            <div className="absolute right-3 top-3 z-10 flex flex-col gap-1">
+              <button
+                onClick={() => zoomButton(1)}
+                title="Zoom in"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-panel/90 text-muted backdrop-blur transition-colors hover:border-mint/50 hover:text-mint"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+              <button
+                onClick={() => zoomButton(-1)}
+                title="Zoom out"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-panel/90 text-muted backdrop-blur transition-colors hover:border-mint/50 hover:text-mint"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
+            </div>
+
             {source === "simulated" && (
               <p className="pointer-events-none absolute bottom-12 left-3 rounded-lg bg-panel/80 px-2 py-1 text-[10px] text-faint backdrop-blur">
                 No free live feed for {symbol.id} — realistic simulated candles. BTC, ETH, SOL, BNB, XRP stream live.
@@ -523,9 +672,10 @@ export default function BacktestView() {
           <button
             onClick={() => {
               setPlaying(false);
-              setEndIndex(Math.max(winStart + 1, winStart + 3));
+              const from = range ? range.from : Math.max(winStart + 1, winStart + 3);
+              setEndIndex(from);
             }}
-            title="Cut candles here and replay"
+            title={range ? "Move replay cursor to segment start" : "Cut candles here and replay"}
             className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-panel2 text-muted transition-colors hover:border-mint/50 hover:text-mint"
           >
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -554,7 +704,7 @@ export default function BacktestView() {
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
                   <path d="M7 5.5v13a1 1 0 0 0 1.5 0.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 7 5.5z" />
                 </svg>
-                Play
+                {range ? "Run" : "Play"}
               </>
             )}
           </button>
@@ -576,23 +726,27 @@ export default function BacktestView() {
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <input
             type="range"
-            min={0}
-            max={Math.max(1, len - 1)}
-            value={Math.min(endIndex, Math.max(0, len - 1))}
+            min={range?.from ?? 0}
+            max={Math.max(1, range?.to ?? len - 1)}
+            value={Math.min(Math.max(endIndex, range?.from ?? 0), range?.to ?? len - 1)}
             onChange={(e) => scrub(Number(e.target.value))}
             className="h-1.5 w-full cursor-pointer accent-[#34d399]"
             aria-label="Replay cursor"
           />
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
-              endIndex >= len - 1 ? "bg-mint/15 text-mint" : "bg-amber/15 text-amber"
+              endIndex >= (range?.to ?? len - 1) ? "bg-mint/15 text-mint" : "bg-amber/15 text-amber"
             }`}
           >
-            {endIndex >= len - 1 ? "Live" : `Replay · ${endIndex + 1}/${len}`}
+            {endIndex >= (range?.to ?? len - 1)
+              ? range
+                ? "Segment end"
+                : "Live"
+              : `Replay · ${endIndex + 1}/${len}`}
           </span>
           <button
             onClick={goLive}
-            disabled={endIndex >= len - 1}
+            disabled={!range && endIndex >= len - 1}
             className="shrink-0 rounded-xl border border-line bg-panel2 px-3 py-2 text-[12px] font-bold text-muted transition-colors hover:border-mint/50 hover:text-mint disabled:opacity-40"
           >
             Jump to live
@@ -601,8 +755,8 @@ export default function BacktestView() {
       </div>
 
       <p className="px-1 text-[11px] leading-relaxed text-faint">
-        Scroll to zoom · drag to pan · press <b>Play</b> to replay candles one by one (Bar Replay, like TradingView) ·
-        drag the slider to cut the chart anywhere.
+        Pick dates → <b>Cut candles</b> → press <b>Run</b> to replay the segment candle by candle. Scroll or use
+        <b>+ / −</b> to zoom, drag to pan — all 13 timeframes from 1m to 1y.
       </p>
     </div>
   );
