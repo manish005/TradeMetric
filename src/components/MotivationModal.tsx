@@ -16,6 +16,14 @@ const CATEGORY_META: Record<QuoteCategory, string> = {
   patience: "Patience",
 };
 
+function greetingLabel(): string {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return "Good Morning";
+  if (h >= 12 && h < 17) return "Good Afternoon";
+  if (h >= 17 && h < 21) return "Good Evening";
+  return "Good Night";
+}
+
 export default function MotivationModal({
   open,
   onClose,
@@ -91,7 +99,7 @@ export default function MotivationModal({
                 </svg>
               </span>
               <span className="text-[12px] font-bold uppercase tracking-widest text-muted">
-                {isGreeting ? "Good Morning" : "Daily Motivation"}
+                {isGreeting ? greetingLabel() : "Daily Motivation"}
               </span>
             </div>
 

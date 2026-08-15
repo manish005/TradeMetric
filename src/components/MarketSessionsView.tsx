@@ -10,7 +10,6 @@ type SessionDef = {
   startUtcMin: number;
   endUtcMin: number;
   color: string;
-  note: string;
 };
 
 type Seg = { start: number; end: number };
@@ -29,7 +28,6 @@ const SESSIONS: SessionDef[] = [
     startUtcMin: 21 * 60,
     endUtcMin: 6 * 60,
     color: "#f59e0b",
-    note: "Asia-Pacific rollover — AUD/NZD activity",
   },
   {
     id: "tokyo",
@@ -37,7 +35,6 @@ const SESSIONS: SessionDef[] = [
     startUtcMin: 0,
     endUtcMin: 9 * 60,
     color: "#e879f9",
-    note: "JPY crosses & USD/JPY lead",
   },
   {
     id: "london",
@@ -45,7 +42,6 @@ const SESSIONS: SessionDef[] = [
     startUtcMin: 8 * 60,
     endUtcMin: 17 * 60,
     color: "#34d399",
-    note: "Highest liquidity — the first London hour is the strongest",
   },
   {
     id: "newyork",
@@ -53,7 +49,6 @@ const SESSIONS: SessionDef[] = [
     startUtcMin: 13 * 60,
     endUtcMin: 22 * 60,
     color: "#38bdf8",
-    note: "USD majors move most in NY afternoon",
   },
 ];
 
@@ -428,14 +423,17 @@ export default function MarketSessionsView() {
                     { left: 0, width: end },
                   ]
                 : [{ left: start, width: end - start }];
+              const timeLabel = spansMidnight
+                ? `${fmtHM(start)}–24:00 · 00:00–${fmtHM(end)}`
+                : `${fmtHM(start)}–${fmtHM(end)}`;
               return (
                 <div key={s.id} className="flex items-center gap-3">
-                  <div className="w-16 shrink-0 text-right">
+                  <div className="w-24 shrink-0 text-right">
                     <div className={`text-[12px] font-black ${activeThis ? "text-ink" : "text-muted"}`}>
                       {s.name}
                     </div>
-                    <div className="text-[9px] text-faint">
-                      {fmtHM(start)}–{fmtHM(end)}
+                    <div className="text-[9px] leading-tight tabular-nums text-faint">
+                      {timeLabel}
                     </div>
                   </div>
                   <div className="relative h-7 flex-1 overflow-hidden rounded-lg bg-panel2/70">
@@ -450,9 +448,6 @@ export default function MarketSessionsView() {
                         }}
                       />
                     ))}
-                  </div>
-                  <div className="hidden w-52 shrink-0 text-[10.5px] leading-snug text-faint sm:block">
-                    {s.note}
                   </div>
                 </div>
               );
