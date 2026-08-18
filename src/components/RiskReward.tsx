@@ -46,14 +46,8 @@ const PAIRS: Array<{
   { symbol: "ETHUSD", class: "crypto", quote: "USD", pointSize: 0.1, contractPerLot: 1, priceStep: 0.1 },
 ];
 
-const RATIOS = ["1:1", "1:2", "1:3", "1:4", "1:5"] as const;
-type Ratio = (typeof RATIOS)[number];
 type Tone = "mint" | "coral" | "amber" | "cyan" | "muted";
 type Side = "buy" | "sell";
-
-function ratioValue(r: Ratio): number {
-  return Number(r.split(":")[1]);
-}
 
 // Auto-lot ladder by USD-equivalent balance:
 // < $100 → 0.01 · $100–$200 → 0.01 · $200–$300 → 0.02 · +$100 → +0.01 …and so on
@@ -73,9 +67,12 @@ export default function RiskReward() {
   const [riskPercent, setRiskPercent] = useState(
     RISK_STYLES.find((s) => s.id === settings.riskStyle)?.riskPct ?? 1
   );
-  const [ratio, setRatio] = useState<Ratio>("1:3");
+  const [rrRisk, setRrRisk] = useState(1);
+  const [rrReward, setRrReward] = useState(3);
   const [entry, setEntry] = useState(1.1);
   const [sl, setSl] = useState(1.095);
+  const [tpManual, setTpManual] = useState(1.115);
+  const [tpLocked, setTpLocked] = useState(false);
   const [orders, setOrders] = useState(1);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [lotsLocked, setLotsLocked] = useState(false);
@@ -93,16 +90,20 @@ export default function RiskReward() {
   const pair = PAIRS.find((p) => p.symbol === symbol) ?? PAIRS[0];
   const accountIso = ACCOUNT_ISO[accountCurr];
   const activeRates = rates ?? {};
-  const ratioN = ratioValue(ratio);
+  const ratioN = rrRisk > 0 ? rrReward / rrRisk : 1;
 
   // Auto-populate lot size from balance (re-applied whenever balance changes)
   const usdEquiv = convert(accountSize, accountIso, "USD", activeRates);
   const autoLotsValue = autoLots(usdEquiv);
   const activeLots = lotsLocked ? lots : autoLotsValue;
 
-  // Derived TP from entry/SL and the selected reward:risk ratio
+  // Derived TP from entry/SL and the selected reward:risk ratio (user can override)
   const slDist = side === "buy" ? entry - sl : sl - entry;
-  const tp = slDist > 0 ? entry + slDist * ratioN * (side === "buy" ? 1 : -1) : entry;
+  const autoTp =
+    slDist > 0
+      ? entry + slDist * ratioN * (side === "buy" ? 1 : -1)
+      : entry;
+  const tp = tpLocked ? tpManual : autoTp;
   const hasValid = slDist > 0 && accountSize > 0;
 
   // Points = price distance / point size
@@ -248,33 +249,50 @@ export default function RiskReward() {
               />
             </Field>
             <Field label="Take profit — auto">
-              <div className="flex h-11 items-center rounded-xl border border-mint/30 bg-mint/5 px-3 text-[15px] font-bold tabular-nums text-mint">
-                {tp.toFixed(priceDigits(pair))}
+              <div className="flex gap-2">
+                <NumberInput
+                  value={tp}
+                  onChange={(v) => {
+                    setTpManual(v);
+                    setTpLocked(true);
+                  }}
+                  step={String(pair.priceStep)}
+                />
+                <button
+                  onClick={() => {
+                    setTpLocked(false);
+                    setTpManual(tp);
+                  }}
+                  title="Auto-calculate TP from ratio"
+                  className={`shrink-0 rounded-xl border px-2.5 text-[11px] font-semibold transition-colors ${
+                    tpLocked
+                      ? "border-line bg-panel2 text-faint hover:border-mint/40 hover:text-mint"
+                      : "border-mint/30 bg-mint/10 text-mint"
+                  }`}
+                >
+                  {tpLocked ? "manual · auto" : "auto ✓"}
+                </button>
               </div>
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Reward : Risk ratio">
-              <Segmented
-                options={RATIOS.map((r) => ({ value: r, label: r }))}
-                value={ratio}
-                onChange={setRatio}
-              />
-            </Field>
-            <Field label="Risk % of account">
-              <NumberInput
-                value={riskPercent}
-                onChange={setRiskPercent}
-                min={0}
-                step="0.25"
-                suffix={
-                  <span className="pointer-events-none absolute right-3 text-sm font-semibold text-muted">
-                    %
-                  </span>
-                }
-                className="pr-8"
-              />
+              <div className="flex items-center gap-2">
+                <NumberInput
+                  value={rrReward}
+                  onChange={setRrReward}
+                  min={0}
+                  step="0.5"
+                />
+                <span className="text-lg font-bold text-muted">:</span>
+                <NumberInput
+                  value={rrRisk}
+                  onChange={setRrRisk}
+                  min={0}
+                  step="0.5"
+                />
+              </div>
             </Field>
             <Field label="Position size (lots)">
               <div className="flex gap-2">
@@ -380,7 +398,7 @@ export default function RiskReward() {
               value: money(hasValid ? totalLoss : 0, accountCurr),
               tone: "amber",
             },
-            { label: "Reward : Risk", value: `1 : ${ratioN}`, tone: "cyan" },
+            { label: "Reward : Risk", value: `${rrRisk} : ${rrReward}`, tone: "cyan" },
             {
               label: "Risk % of balance (from SL)",
               value: totalLoss > 0 ? `${riskOnBalance}%` : "—",
@@ -410,7 +428,7 @@ export default function RiskReward() {
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${symbol}-${side}-${ratio}-${entry}-${sl}-${activeLots}`}
+            key={`${symbol}-${side}-${rrRisk}-${rrReward}-${entry}-${sl}-${tp}-${tpLocked}-${activeLots}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -428,7 +446,7 @@ export default function RiskReward() {
                 {side === "buy" ? "Buying" : "Selling"}{" "}
                 <span className="font-bold text-ink">{symbol}</span> from{" "}
                 {number(entry, priceDigits(pair))} with SL at{" "}
-                {number(sl, priceDigits(pair))}: a {ratio} reward target means
+                {number(sl, priceDigits(pair))}: a {rrReward}:{rrRisk} reward target means
                 TP at{" "}
                 <span className="font-bold text-cyan">
                   {number(tp, priceDigits(pair))}
