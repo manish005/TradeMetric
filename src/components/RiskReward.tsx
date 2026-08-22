@@ -76,6 +76,7 @@ export default function RiskReward() {
   const [orders, setOrders] = useState(1);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [lotsLocked, setLotsLocked] = useState(false);
+  const [leverage, setLeverage] = useState(100);
 
   useEffect(() => {
     let mounted = true;
@@ -113,6 +114,20 @@ export default function RiskReward() {
 
   const quotePerPoint = pair.pointSize * pair.contractPerLot * activeLots;
   const perPointAccount = convert(quotePerPoint, pair.quote, accountIso, activeRates);
+
+  // Margin required = notional value of position / leverage, in account currency.
+  // Notional = lots × contract size × entry price (in quote currency).
+  // The "current currency rate" is the live quote→account conversion rate used.
+  const lev = leverage > 0 ? leverage : 1;
+  const notional = activeLots * pair.contractPerLot * entry;
+  const notionalAccount = convert(notional, pair.quote, accountIso, activeRates);
+  const marginRequired = round(notionalAccount / lev, 2);
+  // Live conversion rate: how much 1 unit of the pair's quote currency
+  // is worth in the account currency right now.
+  const currentRate =
+    pair.quote === accountIso
+      ? 1
+      : convert(1, pair.quote, accountIso, activeRates);
 
   const loss = round(perPointAccount * entryToSlPips, 2);
   const profit = round(perPointAccount * entryToTpPips, 2);
@@ -321,6 +336,20 @@ export default function RiskReward() {
                 </button>
               </div>
             </Field>
+            <Field label="Leverage">
+              <NumberInput
+                value={leverage}
+                onChange={setLeverage}
+                min={1}
+                step="10"
+                suffix={
+                  <span className="pointer-events-none absolute right-3 text-sm font-semibold text-muted">
+                    1 : {leverage > 0 ? leverage : "—"}
+                  </span>
+                }
+                className="pr-16"
+              />
+            </Field>
             <Field label="No. of orders">
               <NumberInput
                 value={tradeCount}
@@ -405,9 +434,24 @@ export default function RiskReward() {
               tone: "amber",
             },
             {
-              label: `Position size (${pair.symbol === "BTCUSD" || pair.symbol === "ETHUSD" ? "coins" : "lots"})`,
+              label: "Position size (lots)",
               value: String(activeLots),
               tone: "mint",
+            },
+            {
+              label: `Margin required (1:${leverage > 0 ? leverage : 1} leverage)`,
+              value: money(hasValid ? marginRequired : 0, accountCurr),
+              tone: "cyan",
+            },
+            {
+              label: `Notional (${activeLots} lot${activeLots === 1 ? "" : "s"} × ${number(entry, priceDigits(pair))})`,
+              value: money(hasValid ? notionalAccount : 0, accountCurr),
+              tone: "muted",
+            },
+            {
+              label: `Current rate · 1 ${pair.quote} → ${accountIso}`,
+              value: number(currentRate, currentRate >= 100 ? 2 : 4),
+              tone: "amber",
             },
             {
               label: `1 point × ${activeLots} lot${activeLots === 1 ? "" : "s"}${tradeCount > 1 ? ` × ${tradeCount} orders` : ""}`,
@@ -428,7 +472,7 @@ export default function RiskReward() {
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${symbol}-${side}-${rrRisk}-${rrReward}-${entry}-${sl}-${tp}-${tpLocked}-${activeLots}`}
+            key={`${symbol}-${side}-${rrRisk}-${rrReward}-${entry}-${sl}-${tp}-${tpLocked}-${activeLots}-${leverage}-${marginRequired}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -461,7 +505,14 @@ export default function RiskReward() {
                 <span className="font-bold text-coral">
                   {money(totalLoss, accountCurr)}
                 </span>{" "}
-                loss.
+                loss. Margin needed at 1:{leverage > 0 ? leverage : 1} leverage is{" "}
+                <span className="font-bold text-cyan">
+                  {money(marginRequired, accountCurr)}
+                </span>
+                {pair.quote !== accountIso && (
+                  <> (1 {pair.quote} = {number(currentRate, currentRate >= 100 ? 2 : 4)} {accountIso})</>
+                )}
+                .
               </>
             )}
           </motion.div>
